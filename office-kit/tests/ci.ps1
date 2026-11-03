@@ -1,7 +1,7 @@
 ﻿# CI 전용: GitHub Actions Windows 러너에서 install.ps1 / uninstall.ps1 을 처음부터 끝까지 돌려 봅니다.
 # 실제 인증서 대신 Caddy 자체 인증서(-TestMode)를 쓰고, 나머지(서비스, 방화벽, 백업, 복사, 재설치, 복원)는 실제와 같습니다.
 param(
-    [Parameter(Mandatory = $true)][string]$VaultwardenExe,
+    [string]$VaultwardenExe = '',   # 비우면 install.ps1 기본값(이 저장소 릴리스 + 고정 체크섬)
     [Parameter(Mandatory = $true)][string]$AdminHash,
     [Parameter(Mandatory = $true)][string]$AdminPassword
 )
@@ -33,7 +33,8 @@ function Invoke-Https([string]$Path, [string[]]$Extra = @()) {
 function Invoke-Install([string[]]$Extra) {
     $base = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $Kit 'install.ps1'),
         '-Domain', $Domain, '-DuckDnsName', 'kit-test', '-TestMode', '-BackupRoot', $DriveRoot,
-        '-DriveCopyUser', $Me, '-VaultwardenExe', $VaultwardenExe)
+        '-DriveCopyUser', $Me)
+    if ($VaultwardenExe) { $base += @('-VaultwardenExe', $VaultwardenExe) }
     & $Ps @($base + $Extra)
     Check ($LASTEXITCODE -eq 0) "install.ps1 종료 코드 0 ($($Extra -join ' ' -replace '\$argon2id\$\S+', '<hash>'))"
 }

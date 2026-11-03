@@ -28,10 +28,12 @@ jobs:
           own="https://github.com/${{ github.repository }}/releases/download/1.37.5-windows/vaultwarden-1.37.5-windows-x64.exe"
           up="https://github.com/nextyancc/Vaultwarden-Windows-Binary/releases/download/1.37.5-windows/vaultwarden-1.37.5-windows-x64.exe"
           if [ -z "$url" ]; then
-            if curl -fsSL -r 0-0 -o /dev/null "$own"; then url="$own"
-            else url="$up"; echo "::warning::No 1.37.5 build in this repo yet; testing with the upstream build."; fi
+            # This repo's release exists -> leave blank so install.ps1 uses its default URL and pinned checksum
+            if ! curl -fsSL -r 0-0 -o /dev/null "$own"; then
+              url="$up"; echo "::warning::No 1.37.5 build in this repo yet; testing with the upstream build."
+            fi
           fi
-          echo "Using $url"
+          echo "Using ${url:-install.ps1 default (this repo release, pinned sha256)}"
           echo "VW_EXE_URL=$url" >> "$GITHUB_ENV"
 
       - name: Test admin password and argon2id hash

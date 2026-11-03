@@ -49,7 +49,7 @@ $Pinned = @{
     '1.37.5' = @{
         WebVault    = 'v2026.10.1'
         WebVaultSha = '354de9056c871e48db84975985e7d57c111ac6537bd4e4720488019e8638060f'
-        VwSha       = ''
+        VwSha       = 'dd9ccda769768c46eccbe11ca07455556a51b2a747323290ca6e04c8f95f408d'   # 회사 빌드 (Actions run 41739602156)
     }
 }
 $ReleaseRepo  = 'SAAcademy-dev/Vaultwarden-Windows-Binary'
