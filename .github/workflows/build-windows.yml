@@ -3,6 +3,11 @@ name: Build and Release Vaultwarden Windows Binary
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Vaultwarden release tag to build (blank = latest)'
+        required: false
+        default: ''
   schedule:
     - cron: '0 2 * * *'  # 每天凌晨2点运行一次
 
@@ -22,7 +27,14 @@ jobs:
       - name: Get latest release version
         id: get_version
         run: |
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/dani-garcia/vaultwarden/releases/latest | jq -r .tag_name)
+          # Authenticated call: the unauthenticated API limit on shared runners returned "null" here.
+          LATEST_RELEASE="${{ github.event.inputs.version }}"
+          if [ -z "$LATEST_RELEASE" ]; then
+            LATEST_RELEASE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/dani-garcia/vaultwarden/releases/latest | jq -r .tag_name)
+          fi
+          if [ -z "$LATEST_RELEASE" ] || [ "$LATEST_RELEASE" = "null" ]; then
+            echo "::error::Could not determine the Vaultwarden version"; exit 1
+          fi
           echo "RELEASE_VERSION=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
           echo "Latest Vaultwarden version: ${LATEST_RELEASE}"
 
@@ -30,7 +42,7 @@ jobs:
         id: check_release
         run: |
           RELEASE_TAG="${{ steps.get_version.outputs.RELEASE_VERSION }}-windows"
-          RELEASE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG})
+          RELEASE_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG})
           if [ "$RELEASE_EXISTS" = "200" ]; then
             echo "Release already exists"
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -44,7 +56,7 @@ jobs:
         if: steps.check_release.outputs.exists == 'true'
         run: |
           RELEASE_TAG="${{ steps.get_version.outputs.RELEASE_VERSION }}-windows"
-          RELEASE_ID=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG} | jq -r .id)
+          RELEASE_ID=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG} | jq -r .id)
           echo "RELEASE_ID=${RELEASE_ID}" >> $GITHUB_OUTPUT
 
       - name: Check if Windows asset exists
