@@ -123,3 +123,11 @@ This repository contains a GitHub Action that automatically builds and releases 
 ### 文档
 
 - [Vaultwarden Wiki（中文）](https://rs.ppgg.in/) 
+
+---
+
+## SAAcademy-dev fork
+
+This fork builds the Windows `vaultwarden.exe` used by the company's office PC install kit
+(`office-kit/` on the `office-kit` branch). Builds come from the official
+`dani-garcia/vaultwarden` release tags via `.github/workflows/build-windows.yml`.
