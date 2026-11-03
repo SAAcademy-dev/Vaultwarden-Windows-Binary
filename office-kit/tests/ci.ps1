@@ -40,7 +40,8 @@ function Invoke-Install([string[]]$Extra) {
 function Connect-Admin {
     $jar = Join-Path $env:TEMP ('jar-' + [guid]::NewGuid().ToString('N') + '.txt')
     $code = Invoke-Https '/admin' @('-o', 'NUL', '-w', '%{http_code}', '-c', $jar, '--data-urlencode', "token=$AdminPassword")
-    Check ($code -eq '303') "관리자 로그인 → 303 (받은 값 $code)"
+    # 리다이렉트 값 없이 로그인하면 Vaultwarden 은 200 + 관리자 화면 + 쿠키를 돌려줍니다 (틀리면 401)
+    Check ($code -eq '200') "관리자 로그인 → 200 (받은 값 $code)"
     Check ((Get-Content -LiteralPath $jar -Raw) -match 'VW_ADMIN') '관리자 쿠키 발급'
     return $jar
 }
