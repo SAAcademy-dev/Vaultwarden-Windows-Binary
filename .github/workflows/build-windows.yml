@@ -1,3 +1,4 @@
+# SAAcademy-dev fork: builds vaultwarden.exe for office-kit (see README).
 name: Build and Release Vaultwarden Windows Binary
 
 on:
