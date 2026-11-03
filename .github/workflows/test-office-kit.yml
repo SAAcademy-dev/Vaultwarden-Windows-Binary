@@ -1,0 +1,66 @@
+name: Test office kit
+
+on:
+  push:
+    branches: [office-kit]
+    paths: ['office-kit/**', '.github/workflows/test-office-kit.yml']
+  workflow_dispatch:
+    inputs:
+      vw_exe_url:
+        description: 'vaultwarden.exe URL (blank: this repo release, or upstream build if missing)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick vaultwarden.exe
+        shell: bash
+        run: |
+          url="${{ github.event.inputs.vw_exe_url }}"
+          own="https://github.com/${{ github.repository }}/releases/download/1.37.5-windows/vaultwarden-1.37.5-windows-x64.exe"
+          up="https://github.com/nextyancc/Vaultwarden-Windows-Binary/releases/download/1.37.5-windows/vaultwarden-1.37.5-windows-x64.exe"
+          if [ -z "$url" ]; then
+            # This repo's release exists -> leave blank so install.ps1 uses its default URL and pinned checksum
+            if ! curl -fsSL -r 0-0 -o /dev/null "$own"; then
+              url="$up"; echo "::warning::No 1.37.5 build in this repo yet; testing with the upstream build."
+            fi
+          fi
+          echo "Using ${url:-install.ps1 default (this repo release, pinned sha256)}"
+          echo "VW_EXE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Test admin password and argon2id hash
+        shell: pwsh
+        run: |
+          python -m pip install --quiet argon2-cffi
+          $pw = [guid]::NewGuid().ToString('N')
+          Write-Output "::add-mask::$pw"
+          $hash = python -c "import sys; from argon2 import PasswordHasher; print(PasswordHasher(time_cost=3, memory_cost=65540, parallelism=4).hash(sys.argv[1]))" $pw
+          Write-Output "::add-mask::$hash"
+          "ADMIN_PW=$pw" >> $env:GITHUB_ENV
+          "ADMIN_HASH=$hash" >> $env:GITHUB_ENV
+
+      - name: hosts entry for test domain
+        shell: pwsh
+        run: Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`r`n127.0.0.1 vault.kit-test.local"
+
+      - name: Run kit end to end (Windows PowerShell 5.1)
+        shell: powershell
+        run: .\office-kit\tests\ci.ps1 -VaultwardenExe $env:VW_EXE_URL -AdminHash $env:ADMIN_HASH -AdminPassword $env:ADMIN_PW
+
+      - name: Logs
+        if: always()
+        shell: pwsh
+        run: |
+          Get-ChildItem C:\vaultwarden -ErrorAction SilentlyContinue | Format-Table Name, Length -AutoSize
+          Get-ChildItem C:\vaultwarden -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { "===== $($_.Name)"; Get-Content $_.FullName -Tail 80 }
+          if (Test-Path C:\vaultwarden\backups\backup.log) { '===== backups\backup.log'; Get-Content C:\vaultwarden\backups\backup.log }
+          $copyLog = Join-Path $env:LOCALAPPDATA 'VaultwardenBackupCopy\copy.log'
+          if (Test-Path $copyLog) { '===== copy.log'; Get-Content $copyLog }
