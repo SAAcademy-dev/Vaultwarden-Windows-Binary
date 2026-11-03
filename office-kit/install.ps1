@@ -437,11 +437,15 @@ $caddy = Join-Path $InstallDir 'caddy.exe'
 $env:XDG_DATA_HOME = Join-Path $InstallDir 'caddy-data'
 $env:XDG_CONFIG_HOME = Join-Path $InstallDir 'caddy-config'
 Write-TextFile $caddyFile $caddyProd
+Invoke-Exe $caddy @('fmt', '--overwrite', $caddyFile) -AllowFail | Out-Null
 $v = Invoke-Exe $caddy @('validate', '--config', $caddyFile, '--envfile', $caddyEnvPath) -AllowFail
 if ($v.Code -ne 0) { Stop-Install "Caddyfile 검사 실패:`n$($v.Out)" }
 if ($TestMode) {
     # CI 전용: DuckDNS 설정 검사는 위에서 끝냈고, 실제 실행은 Caddy 자체 인증서로 합니다
-    Write-TextFile $caddyFile ($caddyProd -replace '(?s)\ttls \{.*?\n\t\}\n', "`ttls internal`n")
+    $caddyTest = $caddyProd -replace '(?s)\ttls \{.*?\n\t\}\n', "`ttls internal`n"
+    $caddyTest = $caddyTest.Replace("auto_https disable_redirects`n", "auto_https disable_redirects`n`tskip_install_trust`n")
+    Write-TextFile $caddyFile $caddyTest
+    Invoke-Exe $caddy @('fmt', '--overwrite', $caddyFile) -AllowFail | Out-Null
     $v = Invoke-Exe $caddy @('validate', '--config', $caddyFile, '--envfile', $caddyEnvPath) -AllowFail
     if ($v.Code -ne 0) { Stop-Install "테스트용 Caddyfile 검사 실패:`n$($v.Out)" }
 }
